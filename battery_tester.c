@@ -14,6 +14,8 @@
 #define OVERHEAT_TEMPERATURE 70
 #define BATTERY_AMOUNT 6
 #define MAX_OVERHEATED 5
+#define ADC_RESOLUTION 1024
+#define ADC_VOLTAGE_RESOLUTION 5
 
 typedef enum {_DEFAULT, IDLE, TESTED, CHARGING, DISCHARGING, OVERHEATED}
 BATTERY_STATE;
@@ -40,9 +42,9 @@ float measureTemperature(int n);
 void testBattery(int n, Battery *currBattery);
 void stopChargging(int x);
 void startCharging(int x);
-void logToRasberry(int x);
-void logToRasberryVoltage(int x);
-void logToRasberryTemperature(int x);
+void logToRasberry(int x, char *message);
+void logToRasberryVoltage(int x, Battery *currBattery);
+void logToRasberryTemperature(int x, Battery *currBattery);
 void manageOverheat(int x);
 
 Battery batteries[SLOTS_AMOUNT * MULTIPLEXER_MUTLTIPLIER];
@@ -88,7 +90,7 @@ void loop() {
 
 void _default(int n, Battery *currBattery, Battery batteries[])
 {
-  *currBattery = {_DEFAULT, _DEFAULT, 0.0, 0.0, 0, 0};
+  *currBattery = {_DEFAULT, _DEFAULT, 0.0, 0.0, 0, 0}; // Reset battery
   testBattery(n, currBattery);
 
   if (currBattery->voltage > CHARGED_VOLTAGE)
@@ -104,17 +106,20 @@ void idle(int alarmTime, int x, Battery *currBattery, Battery batteries[])
   //if (AlarmTime == (getDate()) && measureVoltage(x) >= (CHARGED_VOLTAGE * 0.9)) // getDate() requires RTC lib
     currBattery->nextState = CHARGING;
   //testBattery(x, batteries[x]); // write to whole structure
-  logToRasberryVoltage(x);
+  logToRasberryVoltage(x, currBattery);
 }
 
 void tested(int x, Battery *currBattery)
 {
   if (currBattery->previousState != IDLE)
-    logToRasberry(x);
+    logToRasberry(x, "Tested");
 }
 
 void charging(int x, Battery *currBattery, Battery batteries[])
 {
+  if (currBattery->previousState != CHARGING)
+    startCharging(x);
+
   if (measureTemperature(x) >= OVERHEAT_TEMPERATURE)
   {
     stopChargging(x);
@@ -122,11 +127,8 @@ void charging(int x, Battery *currBattery, Battery batteries[])
     currBattery->nextState = OVERHEATED;
   }
 
-  if (currBattery->previousState != CHARGING)
-    startCharging(x);
-
-  logToRasberryVoltage(x);
-  logToRasberryTemperature(x);
+  logToRasberryVoltage(x, currBattery);
+  logToRasberryTemperature(x, currBattery);
   currBattery->previousState = CHARGING;
   currBattery->voltage = measureVoltage(x);
 
@@ -141,8 +143,8 @@ void discharging(int x, Battery *currBattery)
   //if (currBattery->previousState != DISCHARGING)
     //startDischarging(x);
 
-  logToRasberryVoltage(x);
-  logToRasberryTemperature(x);
+  logToRasberryVoltage(x, currBattery);
+  logToRasberryTemperature(x, currBattery);
   currBattery->previousState = DISCHARGING;
 
   if (measureVoltage(x) <= DISCHARGED_VOLTAGE)
@@ -156,7 +158,7 @@ void overheated(int x, Battery *currBattery)
 {
   currBattery->previousState = OVERHEATED;
   measureTemperature(x);
-  logToRasberryTemperature(x);
+  logToRasberryTemperature(x, currBattery);
   //manageOverheat(x);
   // IDLE or CHARGE/DISCHARGE next
 }
@@ -166,7 +168,7 @@ float measureVoltage(int n)
   int sumVoltage = 0;
   for (int i = 0; i < 5; i++)
     sumVoltage += analogRead(A0 + n); // A0 - first analog pin
-  return (sumVoltage / 5 * 5 / 1024); 
+  return (sumVoltage/5 * ADC_VOLTAGE_RESOLUTION/ADC_RESOLUTION); 
 }
 
 float measureTemperature(int n) 
@@ -175,7 +177,6 @@ float measureTemperature(int n)
   //for(int i = 0; i < 5; i++)
   //  sumTemperature += sensors.getTempC(deviceAddress);
   return sumTemperature / 5;
-  
 }
 
 void testBattery(int n, Battery *currBattery)
@@ -194,23 +195,31 @@ void startCharging(int x)
 
 void stopChargging(int x)
 {
-
+  pinMode(13, OUTPUT);
+  pinMode(1, OUTPUT);
+  digitalWrite(13, LOW); // Pin for charging
+  digitalWrite(1, HIGH); // Pin for dischraging
 }
 
-
-void logToRasberry(int x)
+void logToRasberry(int x, char *message)
 {
-
+  char *s;
+  sprintf(s, "Battery #%d %s", x, message);
+  Serial.println(s);
 }
 
-void logToRasberryVoltage(int x)
+void logToRasberryVoltage(int x, Battery *currBattery)
 {
-
+  char *s;
+  sprintf(s, "Battery #%d voltage %d", x, currBattery->voltage);
+  Serial.println(s);
 }
 
-void logToRasberryTemperature(int x)
+void logToRasberryTemperature(int x, Battery *currBattery)
 {
-
+  char *s;
+  sprintf(s, "Battery #%d temperature %d", x, currBattery->voltage);
+  Serial.println(s);
 }
 
 void manageOverheat(int x)
