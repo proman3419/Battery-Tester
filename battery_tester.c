@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdio.h>
+#include <math.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 //#include <virtualbotixRTC.h>
@@ -7,7 +8,8 @@
 #define ONE_WIRE_BUS 2 //pin
 #define TEMPERATURE_PRECISION 10 //bits
 #define SLOTS_AMOUNT 4
-#define MULTIPLEXER_MUTLTIPLIER 16
+#define MULTIPLEXER_BITS 4
+#define MULTIPLEXER_PINS 16
 #define CHARGED_VOLTAGE 95
 #define DISCHARGED_VOLTAGE 15
 #define SETTLE_VOLTAGE 70
@@ -31,6 +33,7 @@ typedef struct
   //RTC_TIME alarmTime
 } Battery;
 
+void changeMultiplexerPin();
 void _default();
 void idle();
 void tested();
@@ -64,9 +67,10 @@ void setup()
 void loop() {
   for (n = 0; n < BATTERY_AMOUNT; n++)
   {
-    for (m = 0; m < MULTIPLEXER_MUTLTIPLIER; m++)
+    for (m = 0; m < MULTIPLEXER_PINS; m++)
     {
-      x = (m + n*MULTIPLEXER_MUTLTIPLIER); 
+      changeMultiplexerPin();
+      x = (m + n*MULTIPLEXER_PINS); 
       currBattery = &batteries[x];
       currState = currBattery->nextState;
       switch (currState)
@@ -88,6 +92,17 @@ void loop() {
       }
       currBattery->previousState = currState;
     }
+  }
+}
+
+void changeMultiplexerPin()
+{
+  for (int i = 1; i <= MULTIPLEXER_BITS; i++)
+  {
+    if (m % pow(2, i) == 1)
+      digitalWrite(FIRST_MULTIPLEXER_PIN + m + MULTIPLEXER_BITS - i, HIGH);
+    else
+      digitalWrite(FIRST_MULTIPLEXER_PIN + m + MULTIPLEXER_BITS - i, LOW);
   }
 }
 
