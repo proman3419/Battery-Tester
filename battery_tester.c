@@ -5,12 +5,12 @@
 //#include <DallasTemperature.h>
 //#include <virtualbotixRTC.h>
 
+// Constants
 #define ONE_WIRE_BUS 2 //pin
 #define TEMPERATURE_PRECISION 10 //bits
 #define SLOTS_AMOUNT 4
-#define FIRST_MULTIPLEXER_PIN 0
 #define MULTIPLEXER_BITS 4
-#define MULTIPLEXER_PINS 16
+#define MULTIPLEXER_VARIANTS 16
 #define CHARGED_VOLTAGE 95
 #define DISCHARGED_VOLTAGE 15
 #define SETTLE_VOLTAGE 70
@@ -19,6 +19,9 @@
 #define MAX_OVERHEATED 5
 #define ADC_RESOLUTION 1024
 #define ADC_VOLTAGE_RESOLUTION 5
+
+// Pins
+#define FIRST_MULTIPLEXER_PIN 0
 
 typedef enum {_DEFAULT, IDLE, TESTED, CHARGING, DISCHARGING, OVERHEATED}
 BATTERY_STATE;
@@ -101,9 +104,9 @@ void changeMultiplexerPin()
   for (int i = 1; i <= MULTIPLEXER_BITS; i++)
   {
     if (m % (int)pow(2, i) == 1)
-      digitalWrite(FIRST_MULTIPLEXER_PIN + m + MULTIPLEXER_BITS - i, HIGH);
+      digitalWrite(FIRST_MULTIPLEXER_PIN + MULTIPLEXER_BITS - i, HIGH);
     else
-      digitalWrite(FIRST_MULTIPLEXER_PIN + m + MULTIPLEXER_BITS - i, LOW);
+      digitalWrite(FIRST_MULTIPLEXER_PIN + MULTIPLEXER_BITS - i, LOW);
   }
 }
 
