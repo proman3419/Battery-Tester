@@ -1,13 +1,14 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <math.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
+//#include <OneWire.h>
+//#include <DallasTemperature.h>
 //#include <virtualbotixRTC.h>
 
 #define ONE_WIRE_BUS 2 //pin
 #define TEMPERATURE_PRECISION 10 //bits
 #define SLOTS_AMOUNT 4
+#define FIRST_MULTIPLEXER_PIN 0
 #define MULTIPLEXER_BITS 4
 #define MULTIPLEXER_PINS 16
 #define CHARGED_VOLTAGE 95
@@ -50,7 +51,7 @@ void logToRasberryVoltage();
 void logToRasberryTemperature();
 void manageOverheat();
 
-Battery batteries[SLOTS_AMOUNT * MULTIPLEXER_MUTLTIPLIER];
+Battery batteries[SLOTS_AMOUNT * MULTIPLEXER_PINS];
 Battery *currBattery;
 BATTERY_STATE currState;
 int n = 0, m = 0, x = 0; // x - battery slot index, n - analog channel, m - multiplexer channel
@@ -99,7 +100,7 @@ void changeMultiplexerPin()
 {
   for (int i = 1; i <= MULTIPLEXER_BITS; i++)
   {
-    if (m % pow(2, i) == 1)
+    if (m % (int)pow(2, i) == 1)
       digitalWrite(FIRST_MULTIPLEXER_PIN + m + MULTIPLEXER_BITS - i, HIGH);
     else
       digitalWrite(FIRST_MULTIPLEXER_PIN + m + MULTIPLEXER_BITS - i, LOW);
