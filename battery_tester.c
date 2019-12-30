@@ -75,7 +75,7 @@ void logToRasberryVoltage();
 void logToRasberryTemperature();
 void manageOverheat();
 
-Battery batteries[SLOTS_AMOUNT * MULTIPLEXER_PINS];
+Battery batteries[SLOTS_AMOUNT * MULTIPLEXER_VARIANTS];
 Battery *currBattery;
 BATTERY_STATE currState;
 int n = 0, m = 0, x = 0; // x - battery slot index, n - analog channel, m - multiplexer channel
@@ -92,10 +92,10 @@ void setup()
 void loop() {
   for (n = 0; n < BATTERIES_AMOUNT; n++)
   {
-    for (m = 0; m < MULTIPLEXER_PINS; m++)
+    for (m = 0; m < MULTIPLEXER_VARIANTS; m++)
     {
       setMultiplexerPin();
-      x = (m + n*MULTIPLEXER_MUTLTIPLIER);
+      x = (m + n*MULTIPLEXER_VARIANTS);
       currBattery = &batteries[x];
       currState = currBattery->nextState;
       switch (currState)
@@ -125,10 +125,11 @@ void setMultiplexerPin()
   for (int i = 1; i <= MULTIPLEXER_BITS; i++)
   {
     if (m % (int)pow(2, i) == 1)
-      digitalWrite(FIRST_MULTIPLEXER_PIN + MULTIPLEXER_BITS - i, HIGH);
+      digitalWrite(MULTIPLEXER_CONTROL_PIN + MULTIPLEXER_BITS - i, HIGH);
     else
-      digitalWrite(FIRST_MULTIPLEXER_PIN + MULTIPLEXER_BITS - i, LOW);
+      digitalWrite(MULTIPLEXER_CONTROL_PIN + MULTIPLEXER_BITS - i, LOW);
   }
+}
 
 void _default()
 {
