@@ -1,8 +1,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <math.h>
-//#include <OneWire.h>
-//#include <DallasTemperature.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 //#include <virtualbotixRTC.h>
 
 // Channels
@@ -60,6 +60,7 @@ typedef struct
 } Battery;
 
 void setupPins();
+void setupSensors();
 void setMultiplexerPin();
 void _default();
 void idle();
@@ -80,6 +81,9 @@ void manageOverheat();
 Battery batteries[SLOTS_AMOUNT * MULTIPLEXER_VARIANTS];
 Battery *currBattery;
 BATTERY_STATE currState;
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+DeviceAddress thermometers[SLOTS_AMOUNT];
 int n = 0, m = 0, x = 0; // x - battery slot index, n - analog channel, m - multiplexer channel
 unsigned int alarmTime; // It has to be a type of RTC lib
 
@@ -87,8 +91,8 @@ void setup()
 {
   Serial.begin(9600);
   setupPins();
-  //sensors.begin();
-  //begin();
+  setupSensors();
+  sensors.begin();
   //initRTC();
 }
 
@@ -127,6 +131,21 @@ void setupPins()
 {
   for (int i = 3; i <= 8; i++)
     pinMode(i, OUTPUT);
+}
+
+void setupSensors()
+{
+  sensors.begin();
+  for (int i = 0; i < SLOTS_AMOUNT; i++)
+  {
+    if (!sensors.getAddress(thermometers[i], i))
+    {
+      Serial.print("Unable to find address for thermometer ");
+      Serial.println(i);
+      continue;
+    }
+    sensors.setResolution(thermometers[i], TEMPERATURE_PRECISION);
+  }
 }
 
 void setMultiplexerPin()
@@ -225,8 +244,8 @@ float measureVoltage()
 float measureTemperature()
 {
   float sumTemperature;
-  //for(int i = 0; i < 5; i++)
-  //  sumTemperature += sensors.getTempC(deviceAddress);
+  for(int i = 0; i < 5; i++)
+    sumTemperature += sensors.getTempC(thermometers[n]);
   return sumTemperature / 5;
 }
 
