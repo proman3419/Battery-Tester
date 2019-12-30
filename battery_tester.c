@@ -26,19 +26,20 @@
 #define A3 17
 #define A4 18
 #define A5 19
-#define MULTIPLEXER_CONTROL_PIN 1
-#define ONE_WIRE_BUS ONEWIRE //pin
+#define MULTIPLEXER_CONTROL_PIN RX
+#define ONE_WIRE_BUS ONEWIRE
+#define FIRST_CHARGING_PIN D1
+#define FIRST_DISCHARGING_PIN D2
 
 // Constants
 #define TEMPERATURE_PRECISION 10 //bits
-#define SLOTS_AMOUNT 4
 #define MULTIPLEXER_BITS 4
 #define MULTIPLEXER_VARIANTS 16
 #define CHARGED_VOLTAGE 95
 #define DISCHARGED_VOLTAGE 15
 #define SETTLE_VOLTAGE 70
 #define OVERHEAT_TEMPERATURE 70
-#define BATTERIES_AMOUNT 6
+#define SLOTS_AMOUNT 4
 #define MAX_OVERHEATED 5
 #define ADC_RESOLUTION 1024
 #define ADC_VOLTAGE_RESOLUTION 5
@@ -58,6 +59,7 @@ typedef struct
   //RTC_TIME alarmTime
 } Battery;
 
+void setupPins();
 void setMultiplexerPin();
 void _default();
 void idle();
@@ -68,7 +70,7 @@ void overheated();
 float measureVoltage();
 float measureTemperature();
 void testBattery();
-void stopChargging();
+void stopCharging();
 void startCharging();
 void logToRasberry(char *message);
 void logToRasberryVoltage();
@@ -84,13 +86,14 @@ unsigned int alarmTime; // It has to be a type of RTC lib
 void setup()
 {
   Serial.begin(9600);
+  setupPins();
   //sensors.begin();
   //begin();
   //initRTC();
 }
 
 void loop() {
-  for (n = 0; n < BATTERIES_AMOUNT; n++)
+  for (n = 0; n < SLOTS_AMOUNT; n++)
   {
     for (m = 0; m < MULTIPLEXER_VARIANTS; m++)
     {
@@ -118,6 +121,12 @@ void loop() {
       currBattery->previousState = currState;
     }
   }
+}
+
+void setupPins()
+{
+  for (int i = 3; i <= 8; i++)
+    pinMode(i, OUTPUT);
 }
 
 void setMultiplexerPin()
@@ -169,7 +178,7 @@ void charging()
     startCharging();
   if (measureTemperature() >= OVERHEAT_TEMPERATURE)
   {
-    stopChargging();
+    stopCharging();
     currBattery->overheated = true;
     currBattery->nextState = OVERHEATED;
   }
@@ -229,18 +238,14 @@ void testBattery()
 
 void startCharging()
 {
-  pinMode(13, OUTPUT);
-  pinMode(1, OUTPUT);
-  digitalWrite(13, HIGH); // Pin for charging
-  digitalWrite(1, LOW); // Pin for dischraging
+  digitalWrite(FIRST_CHARGING_PIN + n, HIGH);
+  digitalWrite(FIRST_DISCHARGING_PIN + n, LOW);
 }
 
-void stopChargging()
+void stopCharging()
 {
-  pinMode(13, OUTPUT);
-  pinMode(1, OUTPUT);
-  digitalWrite(13, LOW); // Pin for charging
-  digitalWrite(1, HIGH); // Pin for dischraging
+  digitalWrite(FIRST_CHARGING_PIN + n, LOW);
+  digitalWrite(FIRST_DISCHARGING_PIN + n, HIGH);
 }
 
 void logToRasberry(char *message)
