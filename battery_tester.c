@@ -5,8 +5,31 @@
 //#include <DallasTemperature.h>
 //#include <virtualbotixRTC.h>
 
+// Channels
+#define TX 0
+#define RX 1
+#define ONEWIRE 2
+#define D1 3
+#define D2 4
+#define D3 5
+#define D4 6
+#define D5 7
+#define D6 8
+#define D7 9
+#define D8 10
+#define D9 11
+#define D10 12
+#define D11 13
+#define A0 14
+#define A1 15
+#define A2 16
+#define A3 17
+#define A4 18
+#define A5 19
+#define MULTIPLEXER_CONTROL_PIN 1
+#define ONE_WIRE_BUS ONEWIRE //pin
+
 // Constants
-#define ONE_WIRE_BUS 2 //pin
 #define TEMPERATURE_PRECISION 10 //bits
 #define SLOTS_AMOUNT 4
 #define MULTIPLEXER_BITS 4
@@ -15,13 +38,11 @@
 #define DISCHARGED_VOLTAGE 15
 #define SETTLE_VOLTAGE 70
 #define OVERHEAT_TEMPERATURE 70
-#define BATTERY_AMOUNT 6
+#define BATTERIES_AMOUNT 6
 #define MAX_OVERHEATED 5
 #define ADC_RESOLUTION 1024
 #define ADC_VOLTAGE_RESOLUTION 5
 
-// Pins
-#define FIRST_MULTIPLEXER_PIN 0
 
 typedef enum {_DEFAULT, IDLE, TESTED, CHARGING, DISCHARGING, OVERHEATED}
 BATTERY_STATE;
@@ -37,7 +58,7 @@ typedef struct
   //RTC_TIME alarmTime
 } Battery;
 
-void changeMultiplexerPin();
+void setMultiplexerPin();
 void _default();
 void idle();
 void tested();
@@ -69,12 +90,12 @@ void setup()
 }
 
 void loop() {
-  for (n = 0; n < BATTERY_AMOUNT; n++)
+  for (n = 0; n < BATTERIES_AMOUNT; n++)
   {
     for (m = 0; m < MULTIPLEXER_PINS; m++)
     {
-      changeMultiplexerPin();
-      x = (m + n*MULTIPLEXER_PINS); 
+      setMultiplexerPin();
+      x = (m + n*MULTIPLEXER_MUTLTIPLIER);
       currBattery = &batteries[x];
       currState = currBattery->nextState;
       switch (currState)
@@ -99,7 +120,7 @@ void loop() {
   }
 }
 
-void changeMultiplexerPin()
+void setMultiplexerPin()
 {
   for (int i = 1; i <= MULTIPLEXER_BITS; i++)
   {
@@ -108,7 +129,6 @@ void changeMultiplexerPin()
     else
       digitalWrite(FIRST_MULTIPLEXER_PIN + MULTIPLEXER_BITS - i, LOW);
   }
-}
 
 void _default()
 {
@@ -189,10 +209,10 @@ float measureVoltage()
   int sumVoltage = 0;
   for (int i = 0; i < 5; i++)
     sumVoltage += analogRead(A0 + n); // A0 - first analog pin
-  return (sumVoltage/5 * ADC_VOLTAGE_RESOLUTION/ADC_RESOLUTION); 
+  return (sumVoltage/5 * ADC_VOLTAGE_RESOLUTION/ADC_RESOLUTION);
 }
 
-float measureTemperature() 
+float measureTemperature()
 {
   float sumTemperature;
   //for(int i = 0; i < 5; i++)
