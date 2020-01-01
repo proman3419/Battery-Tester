@@ -93,14 +93,14 @@ int n = 0, m = 0, x = 0; // x - battery slot index, n - analog channel, m - mult
 unsigned int alarmTime; // It has to be a type of RTC lib
 
 void setup()
-{
+{  
   Serial.begin(9600);
   setupPins();
   setupSensors();
   setupRTC();
 }
 
-void loop()
+void loop() 
 {
   for (n = 0; n < SLOTS_AMOUNT; n++)
   {
@@ -208,17 +208,17 @@ void charging()
   {
     stopCharging();
     currBattery->nextState = OVERHEATED;
-  }
+  } 
   else
   {
     if (currBattery->previousState != CHARGING)
       startCharging();
-
+    
     if (currBattery->cycleFinished == true && currBattery->voltage >= SETTLE_VOLTAGE)
     {
       currBattery->nextState = TESTED;
       stopCharging();
-    }
+    }  
     else if (currBattery->cycleFinished == false && currBattery->voltage >= CHARGED_VOLTAGE)
     {
       currBattery->nextState = IDLE;
