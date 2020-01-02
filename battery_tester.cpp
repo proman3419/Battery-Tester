@@ -3,6 +3,7 @@
 #include <math.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <Wire.h>
 #include <DS1307.h>
 
 // Channels
@@ -46,7 +47,9 @@
 #define MAX_OVERHEATED 5
 #define ADC_RESOLUTION 1024
 #define ADC_VOLTAGE_RESOLUTION 5
-#define ALARM_TIME_OFFSET_MIN 5
+#define ALARM_TIME_OFFSET_HOURS 0
+#define ALARM_TIME_OFFSET_MINUTES 5
+#define ALARM_TIME_OFFSET_SECONDS 0
 
 typedef enum {_DEFAULT, IDLE, TESTED, CHARGING, DISCHARGING, OVERHEATED}
 BATTERY_STATE;
@@ -72,14 +75,17 @@ void tested();
 void charging();
 void discharging();
 void overheated();
-void testBattery(char *message);
-void stopCharging();
+void testBattery(const char *message);
 void startCharging();
+void stopCharging();
 void startDischarging();
 void stopDischarging();
 void measureVoltage();
 void measureTemperature();
-void logToRasberry(char *message);
+uint32_t toUnixTimeHMS(int hours, int minutes, int seconds);
+void addOffsetToRTCDateTime(RTCDateTime &dt);
+int compareRTCDateTime(const RTCDateTime &a, const RTCDateTime &b); // returns -1 if a < b, 1 if a > b, 0 if a == b 
+void logToRasberry(const char *message);
 void logToRasberryVoltage();
 void logToRasberryTemperature();
 
@@ -89,8 +95,10 @@ BATTERY_STATE currState;
 OneWire oneWire(ONE_WIRE_CH);
 DallasTemperature sensors(&oneWire);
 DeviceAddress thermometers[SLOTS_AMOUNT];
+RTCDateTime currTime;
+RTCDateTime alarmTimeOffset;
+DS1307 clock;
 int n = 0, m = 0, x = 0; // x - battery slot index, n - analog channel, m - multiplexer channel
-unsigned int alarmTime; // It has to be a type of RTC lib
 
 void setup()
 {  
@@ -135,6 +143,7 @@ void loop()
 void setupPins()
 {
   Serial.println("Setting up pins");
+  
   for (int i = D2; i <= D13; i++)
     pinMode(i, OUTPUT);
 }
@@ -142,6 +151,7 @@ void setupPins()
 void setupSensors()
 {
   Serial.println("Setting up sensors");
+  
   sensors.begin();
   for (int i = 0; i < SLOTS_AMOUNT; i++)
   {
@@ -158,10 +168,15 @@ void setupSensors()
 void setupRTC()
 {
   Serial.println("Setting up RTC");
+  
   clock.begin();
   if (!clock.isReady())
     clock.setDateTime(__DATE__, __TIME__);
-  alarmTimeOffset.minute = ALARM_TIME_OFFSET_MIN;
+
+  alarmTimeOffset.hour = ALARM_TIME_OFFSET_HOURS;
+  alarmTimeOffset.minute = ALARM_TIME_OFFSET_MINUTES;
+  alarmTimeOffset.second = ALARM_TIME_OFFSET_SECONDS;
+  alarmTimeOffset.unixtime = toUnixTimeHMS(ALARM_TIME_OFFSET_HOURS, ALARM_TIME_OFFSET_MINUTES, ALARM_TIME_OFFSET_SECONDS);
 }
 
 void setMultiplexerPin()
@@ -189,9 +204,13 @@ void _default()
 void idle()
 {
   testBattery("Idle");
-  currBattery->alarmTime = clock.getDate + alarmTimeOffset;
+  
+  currTime = clock.getDateTime();
+  currBattery->alarmTime = currTime;
+  addOffsetToRTCDateTime(currBattery->alarmTime);
   currBattery->previousState = IDLE;
-  if (alarmTime >= (clock.getDate()) && currBattery->voltage >= (CHARGED_VOLTAGE * 0.9))
+
+  if ((compareRTCDateTime(currBattery->alarmTime, currTime) == 1) && (currBattery->voltage >= CHARGED_VOLTAGE * 0.9))
     currBattery->nextState = CHARGING;
 }
 
@@ -204,6 +223,7 @@ void tested()
 void charging()
 {
   testBattery("Charging");
+
   if (currBattery->temperature >= OVERHEAT_TEMPERATURE)
   {
     stopCharging();
@@ -230,6 +250,7 @@ void charging()
 void discharging()
 {
   testBattery("Discharging");
+  
   if (currBattery->previousState != DISCHARGING)
     startDischarging();
   if (currBattery->voltage <= DISCHARGED_VOLTAGE)
@@ -270,7 +291,7 @@ void measureTemperature()
   currBattery->temperature = sumTemperature / 5;
 }
 
-void testBattery(char *message)
+void testBattery(const char *message)
 {
   measureVoltage();
   measureTemperature();
@@ -303,7 +324,33 @@ void stopDischarging()
   digitalWrite(FIRST_DISCHARGING_CH + 2*n, LOW);
 }
 
-void logToRasberry(char *message)
+uint32_t toUnixTimeHMS(int hours, int minutes, int seconds)
+{
+  uint32_t u;
+  u = ((hours*60) + minutes)*60 + seconds;
+  u += 946681200;
+  return u;
+}
+
+void addOffsetToRTCDateTime(RTCDateTime &dt)
+{
+  dt.hour += alarmTimeOffset.hour;
+  dt.minute += alarmTimeOffset.minute;
+  dt.second += alarmTimeOffset.second;  
+  dt.unixtime += alarmTimeOffset.unixtime;
+}
+
+int compareRTCDateTime(const RTCDateTime &a, const RTCDateTime &b)
+{
+  if (a.unixtime < b.unixtime)
+    return -1;
+  if (a.unixtime > b.unixtime)
+    return 1;
+  if (a.unixtime == b.unixtime)
+    return 0;
+}
+
+void logToRasberry(const char *message)
 {
   char *s;
   sprintf(s, "Battery #%d %s", x, message);
